@@ -128,6 +128,12 @@ int main(int argc, char *argv[]){
 	}
 	*/
 	
+	/*DEBUG*/
+	printf("Podany plik to: %s.\n", nazwa_pliku ? nazwa_pliku : "BRAK");
+	printf("Przyjety format wyjsciowy to: %s.\n", format_wyjsciowy);
+	printf("Przyjeta liczba czesci to: %d.\n", czesci);
+	printf("Przyjety margines procentowy to: %d.\n", margines); 
+	
 	/*WCZYTYWANIE PLIKOW I INTERPRETACJA GRAFOW*/
 	
 	int m; /*Liczba kolumn w grafie*/
@@ -138,26 +144,57 @@ int main(int argc, char *argv[]){
 	int j; 
 	
 	char linia[MAX_LINE];
+	char linia_wezlow[MAX_LINE];
+	char linia_podzialow[MAX_LINE];
+	
+	int indeks_w_linii = 0;
 	
 	FILE* plik = fopen(nazwa_pliku, "r");
 	if(!plik){
-		printf("Nie znaleziono pliku: %s.", nazwa_pliku);
+		printf("Nie znaleziono pliku: %s.\n", nazwa_pliku);
 		return 1;
 	}
 	
-	if(fgets(linia, sizeof(linia), plik)) {
+	if(fgets(linia, sizeof(linia), plik)){
 		m = atoi(linia);
-		printf("DEBUG: Maksymalna liczba węzłów w wierszu: %d", m);
+		printf("DEBUG: Maksymalna liczba węzłów w wierszu: %d.\n", m);
     }
 	
+	/*Wczytanie dwoch linii*/
+	fgets(linia_wezlow, sizeof(linia), plik);
+	fgets(linia_podzialow, sizeof(linia), plik);
 	
+	/*Tablice do przechowywania wezlow*/
+	int wezly[MAX_LINE];
+	int indeksy_podzialu[MAX_LINE];
 	
+	/*Odczytanie indeksow wezlow w wierszu grafu*/
+	int liczba_wezlow = 0;
+	char* token = strtok(linia_wezlow, ";");
+	while(token){
+		wezly[liczba_wezlow++] = atoi(token);
+		token = strtok(NULL, ";");
+	}
 	
-	/*DEBUG*/
-	printf("Podany plik to: %s.\n", nazwa_pliku ? nazwa_pliku : "BRAK");
-	printf("Przyjety format wyjsciowy to: %s.\n", format_wyjsciowy);
-	printf("Przyjeta liczba czesci to: %d.\n", czesci);
-	printf("Przyjety margines procentowy to: %d.\n", margines); 
+	/*Odczytanie indeksow podzialu*/
+	int liczba_podzialow = 0;
+	token = strtok(linia_podzialow, ";");
+	while (token) {
+		indeksy_podzialu[liczba_podzialow++] = atoi(token);
+		token = strtok(NULL, ";");
+	}
+
+	/*Przetworzenie danych*/
+	int aktualny_indeks = 0;
+	printf("Wiersze grafu:\n");
+
+	for (int i = 0; i < liczba_podzialow - 1; i++) {
+		printf("Wiersz %d:", i + 1);
+		for (int j = indeksy_podzialu[i]; j < indeksy_podzialu[i + 1]; j++) {
+			printf(" [%d, %d]", i + 1, wezly[j]);
+		}
+		printf("\n");
+	}
 	
 	return 0;
 }
