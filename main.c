@@ -12,11 +12,17 @@ typedef struct Krawedz{
 } Krawedz;
 
 /*Struktura wezla grafu*/
-typedef struct Wezel {
-    int id; /*Numer id wezla*/
+typedef struct Wezel{
+    /* int id; Numer id wezla, chyba jest niepotrzebny (bo wezly beda w tablicy w strukturze graf i kazdy bedzie mial swoj indeks)*/
     int x, y; /*Polozenie wezla w grafie*/
     Krawedz* sasiedzi; /*Lista sasiedztwa (wskaznik na pierwszy element)*/
 } Wezel;
+
+/*Struktura grafu*/
+typedef struct Graf{
+	int V; /*Liczba wezlow*/
+	Wezel* wezly; /*Lista wezlow*/
+} Graf;
 
 void dodaj_krawedz(Wezel* a, Wezel* b){
 	/*Tworzenie krawedzi od A do B*/
@@ -40,7 +46,7 @@ void dodaj_krawedz(Wezel* a, Wezel* b){
 	b->sasiedzi = nowa_krawedz_b;
 }
 
-/*Funkcja wypisujaca sasiadow wezła */
+/*Funkcja wypisujaca sasiadow wezła 
 void wypisz_sasiadow(Wezel* wezel){
 	printf("Wezel %d ma sasiadow:", wezel->id);
 	Krawedz* k = wezel->sasiedzi;
@@ -50,6 +56,7 @@ void wypisz_sasiadow(Wezel* wezel){
 	}
 	printf("\n");
 }
+*/
 
 /*Funkcja zwalniajaca pamiec*/
 void zwolnij_wezel(Wezel* wezel){
@@ -136,8 +143,8 @@ int main(int argc, char *argv[]){
 	
 	/*WCZYTYWANIE PLIKOW I INTERPRETACJA GRAFOW*/
 	
-	int m; /*Liczba kolumn w grafie*/
 	int n; /*Liczba wierszy w grafie*/
+	int m; /*Liczba kolumn w grafie*/
 	int v; /*Liczba wezlow w grafie*/
 	
 	int i; 
@@ -157,7 +164,7 @@ int main(int argc, char *argv[]){
 	
 	if(fgets(linia, sizeof(linia), plik)){
 		m = atoi(linia);
-		printf("DEBUG: Maksymalna liczba węzłów w wierszu: %d.\n", m);
+		printf("DEBUG: Maksymalna liczba wezlow w wierszu: %d.\n", m);
     }
 	
 	/*Wczytanie dwoch linii*/
@@ -183,18 +190,45 @@ int main(int argc, char *argv[]){
 		indeksy_podzialu[liczba_podzialow++] = atoi(token);
 		token = strtok(NULL, ";");
 	}
-
+	
+	 /*Tworzenie struktury grafu*/
+    Graf* graf = (Graf*)malloc(sizeof(Graf));
+    graf->V = liczba_wezlow;
+    graf->wezly = (Wezel*)malloc(liczba_wezlow * sizeof(Wezel));
+	
+	/*Inicjalizacja wezlow*/
+    for (int i = 0; i < liczba_wezlow; i++) {
+        graf->wezly[i].sasiedzi = NULL;
+    }
+	
 	/*Przetworzenie danych*/
+	int k = 0;
+	for(int i = 0; i < liczba_podzialow - 1; i++){
+		for (int j = indeksy_podzialu[i]; j < indeksy_podzialu[i + 1]; j++){
+			graf->wezly[k].x = i;
+			graf->wezly[k].y = wezly[j];
+			k++;
+		}
+	}
+	
+	printf("DEBUG: Indeksy wszystkich wezlow:\n");
+	for(int i=0; i < liczba_wezlow; i++){
+		printf("Wezel %d: [%d, %d]\n", i, graf->wezly[i].x, graf->wezly[i].y);
+	}
+	
+	/*Wypisanie danych w terminalu*/
 	int aktualny_indeks = 0;
-	printf("Wiersze grafu:\n");
+	printf("\nWiersze grafu:\n");
 
 	for (int i = 0; i < liczba_podzialow - 1; i++) {
-		printf("Wiersz %d:", i + 1);
+		printf("Wiersz %d:", i);
 		for (int j = indeksy_podzialu[i]; j < indeksy_podzialu[i + 1]; j++) {
-			printf(" [%d, %d]", i + 1, wezly[j]);
+			printf(" [%d, %d]", i, wezly[j]);
 		}
 		printf("\n");
 	}
+	
+	/*Przetworzenie danych do struktur*/
 	
 	return 0;
 }
