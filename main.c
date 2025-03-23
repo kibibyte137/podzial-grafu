@@ -1,28 +1,82 @@
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
-int czy_istnieje(const char *plik) {
-    FILE *plik = fopen(plik, "r");
-    if(plik){
-        fclose(plik);
-        return 1; /*Plik istnieje*/
-    }
-    return 0; /*Plik nie istnieje*/
+#define MAX_LINE 100000  /*Maksymalny rozmiar linii*/
+
+/*Struktura reprezentujaca pojedyncze polaczenie (sasiada)*/
+typedef struct Krawedz{
+	struct Wezel* sasiad; /*Wskaznik na sasiedni wezel*/
+	struct Krawedz* next; /*Nastepne polaczenie w liscie sasiedztwa*/
+} Krawedz;
+
+/*Struktura wezla grafu*/
+typedef struct Wezel {
+    int id; /*Numer id wezla*/
+    int x, y; /*Polozenie wezla w grafie*/
+    Krawedz* sasiedzi; /*Lista sasiedztwa (wskaznik na pierwszy element)*/
+} Wezel;
+
+void dodaj_krawedz(Wezel* a, Wezel* b){
+	/*Tworzenie krawedzi od A do B*/
+	Krawedz* nowa_krawedz_a = (Krawedz*)malloc(sizeof(Krawedz));
+	if(!nowa_krawedz_a){
+		perror("Blad alokacji pamieci dla krawedzi grafu.");
+		return;
+	}
+	nowa_krawedz_a->sasiad = b;
+	nowa_krawedz_a->next = a->sasiedzi;
+	a->sasiedzi = nowa_krawedz_a;
+	
+	/*Tworzenie krawedzi od B do A (graf nieskierowany)*/
+	Krawedz* nowa_krawedz_b = (Krawedz*)malloc(sizeof(Krawedz));
+	if(!nowa_krawedz_b){
+		perror("Blad alokacji pamieci dla krawedzi grafu.");
+		return;
+	}
+	nowa_krawedz_b->sasiad = a;
+	nowa_krawedz_b->next = b->sasiedzi;
+	b->sasiedzi = nowa_krawedz_b;
+}
+
+/*Funkcja wypisujaca sasiadow wezła */
+void wypisz_sasiadow(Wezel* wezel){
+	printf("Wezel %d ma sasiadow:", wezel->id);
+	Krawedz* k = wezel->sasiedzi;
+	while(k){
+		printf(" %d", k->sasiad->id);
+		k = k->next;
+	}
+	printf("\n");
+}
+
+/*Funkcja zwalniajaca pamiec*/
+void zwolnij_wezel(Wezel* wezel){
+	Krawedz* k = wezel->sasiedzi;
+	while(k){
+		Krawedz* temp = k;
+		k = k->next;
+		free(temp);
+	}
+	free(wezel);
 }
 
 /*Funkcja main programu*/
 int main(int argc, char *argv[]){
+	
+	/*GETOPT*/	
+	
 	int opt; /*Zmienna przechowujaca opcje getopt*/
 	int czesci = 2; /*Zmienna przechowujaca liczbe czesci, na ktora ma zostac podzielony graf podana przez uzytkownika, domyslnie 2*/
 	int margines = 10; /*Zmienna przechowujaca margines procentowy ilosci wezlow w poszczegolnych czesciach grafu, domyslnie 10*/
 	char *format_wyjsciowy = "txt"; /*Zmienna przechowujaca format pliku wejsciowego podany przez uzytkownika, domyslnie txt*/
-	char *plik = NULL; /*Zmienna przechowujaca nazwe pliku podana przez uzytkownika*/
+	char *nazwa_pliku = NULL; /*Zmienna przechowujaca nazwe pliku podana przez uzytkownika*/
 	
 	while((opt = getopt(argc, argv, "f:o:c:m:h")) != -1){
 		switch (opt) {
 			case 'f':
-				plik = optarg; /*Pobranie nazwy pliku podanej po -f*/
+				nazwa_pliku = optarg; /*Pobranie nazwy pliku podanej po -f*/
 				break;
 			case 'o':
 				if (optarg) {
@@ -49,15 +103,9 @@ int main(int argc, char *argv[]){
 				printf("Wyswietlenie podrecznej pomocy.\n");
 				return 7; /*Zakonczenie programu z bledem*/
 		}
-	}
-	
+	}	
 	
 	/*OBSLUGA BLEDOW*/
-	
-	if !czy_istnieje(plik){
-		printf("Nie znaleziono pliku: %s.", plik);
-		return 1;
-	}
 	
 	if(format_wyjsciowy != "txt" && format_wyjsciowy != "bin"){
 		printf("Podano nieprawidlowy format pliku wyjsciowego: %s.", format_wyjsciowy);
@@ -65,7 +113,7 @@ int main(int argc, char *argv[]){
 	}
 	
 	if(margines < 0 || margines > 100){
-		printf("Podano niepoprawny margines procentowy: %s.", margines);
+		printf("Podano niepoprawny margines procentowy: %d.", margines);
 		return 3;
 	}
 	
@@ -80,10 +128,36 @@ int main(int argc, char *argv[]){
 	}
 	*/
 	
+	/*WCZYTYWANIE PLIKOW I INTERPRETACJA GRAFOW*/
+	
+	int m; /*Liczba kolumn w grafie*/
+	int n; /*Liczba wierszy w grafie*/
+	int v; /*Liczba wezlow w grafie*/
+	
+	int i; 
+	int j; 
+	
+	char linia[MAX_LINE];
+	
+	FILE* plik = fopen(nazwa_pliku, "r");
+	if(!plik){
+		printf("Nie znaleziono pliku: %s.", nazwa_pliku);
+		return 1;
+	}
+	
+	if(fgets(linia, sizeof(linia), plik)) {
+		m = atoi(linia);
+		printf("DEBUG: Maksymalna liczba węzłów w wierszu: %d", m);
+    }
+	
+	
+	
+	
 	/*DEBUG*/
-	printf("Podany plik to: %s.\n", plik ? plik : "BRAK");
+	printf("Podany plik to: %s.\n", nazwa_pliku ? nazwa_pliku : "BRAK");
 	printf("Przyjety format wyjsciowy to: %s.\n", format_wyjsciowy);
 	printf("Przyjeta liczba czesci to: %d.\n", czesci);
 	printf("Przyjety margines procentowy to: %d.\n", margines); 
+	
 	return 0;
 }
