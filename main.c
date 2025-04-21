@@ -7,7 +7,7 @@ Wartości są poprawnie wczytywane do tablic.
 #include <string.h>
 #include <unistd.h>
 
-#define MAX_LINIA 100000  /*Maksymalny rozmiar linii*/
+#define MAX_LINIA 100000	/*Maksymalny rozmiar linii*/
 
 typedef struct{
 	int max_w_wierszu; /*Maksymalna liczba wezlow w wierszu grafu (nie musi wystapic wiersz z taka iloscia wezlow)*/
@@ -22,17 +22,17 @@ typedef struct{
 } MacierzCSR;
 
 typedef struct{
-    int n; /*Liczba wezlow*/
-    int nnz; /*Liczba niezerowych elementów w macierzy Laplace'a*/
-    int* row_ptr; /*Wskazniki na pierwszy element wiersza*/
-    int* col_idx; /*Indeksy kolumn (sąsiedzi wierzcholka)*/
-    double* values; /*Wartosci macierzy Laplace'a L*/
+	int n; /*Liczba wezlow*/
+	int nnz; /*Liczba niezerowych elementów w macierzy Laplace'a*/
+	int* row_ptr; /*Wskazniki na pierwszy element wiersza*/
+	int* col_idx; /*Indeksy kolumn (sąsiedzi wierzcholka)*/
+	double* values; /*Wartosci macierzy Laplace'a L*/
 } MacierzLaplaceCSR;
 
 void oblicz_stopnie(MacierzCSR *graf, int liczba_wezlow) {
-    for (int i = 0; i < liczba_wezlow; i++) {
-        graf->stopnie[i] = graf->grupy_ptr[i + 1] - graf->grupy_ptr[i];
-    }
+	for (int i = 0; i < liczba_wezlow; i++) {
+		graf->stopnie[i] = graf->grupy_ptr[i + 1] - graf->grupy_ptr[i];
+	}
 }
 
 /*Funkcja do wczytywania i konwersji wartosci z pliku*/
@@ -153,7 +153,7 @@ int main(int argc, char *argv[]){
 	if(fgets(linia, sizeof(linia), plik)){
 		macierz->max_w_wierszu = atoi(linia);
 		printf("DEBUG: Maksymalna liczba wezlow w wierszu: %d.\n", macierz->max_w_wierszu);
-    }
+	}
 	
 	int liczba_wezlow = wczytaj_wartosci(plik, macierz->indeksy);
 	printf("DEBUG: Liczba wezlow w grafie: %d.\n", liczba_wezlow);
@@ -178,16 +178,16 @@ int main(int argc, char *argv[]){
 	printf("DEBUG: Liczba grup wezlow: %d.\n", liczba_grup);
 
 	printf("\nDEBUG: Polaczenia miedzy wezlami:\n");
-    for (int i = 0; i < liczba_grup; i++) {
-        int start = macierz->grupy_ptr[i];
-        int end = (i == liczba_grup - 1) ? elementy_grup - 1 : macierz->grupy_ptr[i + 1] - 1;
+	for (int i = 0; i < liczba_grup; i++) {
+		int start = macierz->grupy_ptr[i];
+		int end = (i == liczba_grup - 1) ? elementy_grup - 1 : macierz->grupy_ptr[i + 1] - 1;
 
-        printf("Grupa %d: ", i + 1);
-        for (int j = start; j <= end; j++) {
-            printf("%d ", macierz->grupy[j]);
-        }
-        printf("\n");
-    }
+		printf("Grupa %d: ", i + 1);
+		for (int j = start; j <= end; j++) {
+			printf("%d ", macierz->grupy[j]);
+		}
+		printf("\n");
+	}
 	
 	free(macierz->indeksy);
 	free(macierz->indeksy_ptr);
@@ -198,4 +198,3 @@ int main(int argc, char *argv[]){
 	fclose(plik);
 	return 0;
 }
-
