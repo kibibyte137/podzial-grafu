@@ -1,72 +1,52 @@
+/*NOTATKA 21.04.2025
+Wartości są poprawnie wczytywane do tablic.
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#define MAX_LINE 100000  /*Maksymalny rozmiar linii*/
+#define MAX_LINIA 100000  /*Maksymalny rozmiar linii*/
 
-/*Struktura reprezentujaca pojedyncze polaczenie (sasiada)*/
-typedef struct Krawedz{
-	struct Wezel* sasiad; /*Wskaznik na sasiedni wezel*/
-	struct Krawedz* next; /*Nastepne polaczenie w liscie sasiedztwa*/
-} Krawedz;
-
-/*Struktura wezla grafu*/
-typedef struct Wezel{
-    /* int id; Numer id wezla, chyba jest niepotrzebny (bo wezly beda w tablicy w strukturze graf i kazdy bedzie mial swoj indeks)*/
-    int x, y; /*Polozenie wezla w grafie*/
-    Krawedz* sasiedzi; /*Lista sasiedztwa (wskaznik na pierwszy element)*/
-} Wezel;
-
-/*Struktura grafu*/
-typedef struct Graf{
-	int V; /*Liczba wezlow*/
-	Wezel* wezly; /*Lista wezlow*/
-} Graf;
-
-void dodaj_krawedz(Wezel* a, Wezel* b){
-	/*Tworzenie krawedzi od A do B*/
-	Krawedz* nowa_krawedz_a = (Krawedz*)malloc(sizeof(Krawedz));
-	if(!nowa_krawedz_a){
-		perror("Blad alokacji pamieci dla krawedzi grafu.");
-		return;
-	}
-	nowa_krawedz_a->sasiad = b;
-	nowa_krawedz_a->next = a->sasiedzi;
-	a->sasiedzi = nowa_krawedz_a;
+typedef struct{
+	int max_w_wierszu; /*Maksymalna liczba wezlow w wierszu grafu (nie musi wystapic wiersz z taka iloscia wezlow)*/
 	
-	/*Tworzenie krawedzi od B do A (graf nieskierowany)*/
-	Krawedz* nowa_krawedz_b = (Krawedz*)malloc(sizeof(Krawedz));
-	if(!nowa_krawedz_b){
-		perror("Blad alokacji pamieci dla krawedzi grafu.");
-		return;
-	}
-	nowa_krawedz_b->sasiad = a;
-	nowa_krawedz_b->next = b->sasiedzi;
-	b->sasiedzi = nowa_krawedz_b;
+	int* indeksy; /*Indeksy wezlow w poszczegolnych wierszach*/
+	int* indeksy_ptr; /*Wskazniki na pierwsze indeksy węzłów w wierszach*/
+	
+	int* grupy; /*Grupy wezlow polaczone przy pomocy krawedzi*/
+	int* grupy_ptr; /*Wskazniki na pierwsze wezly w poszczegolnych grupach*/
+	
+	int* stopnie; /*Stopnie poszczegolnych wezlow*/
+} MacierzCSR;
+
+typedef struct{
+    int n; /*Liczba wezlow*/
+    int nnz; /*Liczba niezerowych elementów w macierzy Laplace'a*/
+    int* row_ptr; /*Wskazniki na pierwszy element wiersza*/
+    int* col_idx; /*Indeksy kolumn (sąsiedzi wierzcholka)*/
+    double* values; /*Wartosci macierzy Laplace'a L*/
+} MacierzLaplaceCSR;
+
+void oblicz_stopnie(MacierzCSR *graf, int liczba_wezlow) {
+    for (int i = 0; i < liczba_wezlow; i++) {
+        graf->stopnie[i] = graf->grupy_ptr[i + 1] - graf->grupy_ptr[i];
+    }
 }
 
-/*Funkcja wypisujaca sasiadow wezła 
-void wypisz_sasiadow(Wezel* wezel){
-	printf("Wezel %d ma sasiadow:", wezel->id);
-	Krawedz* k = wezel->sasiedzi;
-	while(k){
-		printf(" %d", k->sasiad->id);
-		k = k->next;
-	}
-	printf("\n");
-}
-*/
+/*Funkcja do wczytywania i konwersji wartosci z pliku*/
+int wczytaj_wartosci(FILE* plik, int* tablica){
+	char linia[MAX_LINIA];
+	if (!fgets(linia, sizeof(linia), plik)) return 0;
 
-/*Funkcja zwalniajaca pamiec*/
-void zwolnij_wezel(Wezel* wezel){
-	Krawedz* k = wezel->sasiedzi;
-	while(k){
-		Krawedz* temp = k;
-		k = k->next;
-		free(temp);
+	int licznik = 0;
+	char* token = strtok(linia, ";");
+	while(token){
+		tablica[licznik++] = atoi(token);
+		token = strtok(NULL, ";");
 	}
-	free(wezel);
+	return licznik;
 }
 
 /*Funkcja main programu*/
@@ -113,7 +93,6 @@ int main(int argc, char *argv[]){
 	}	
 	
 	/*OBSLUGA BLEDOW*/
-	
 	if(format_wyjsciowy != "txt" && format_wyjsciowy != "bin"){
 		printf("Podano nieprawidlowy format pliku wyjsciowego: %s.", format_wyjsciowy);
 		return 2;
@@ -136,25 +115,34 @@ int main(int argc, char *argv[]){
 	*/
 	
 	/*DEBUG*/
-	printf("Podany plik to: %s.\n", nazwa_pliku ? nazwa_pliku : "BRAK");
-	printf("Przyjety format wyjsciowy to: %s.\n", format_wyjsciowy);
-	printf("Przyjeta liczba czesci to: %d.\n", czesci);
-	printf("Przyjety margines procentowy to: %d.\n", margines); 
+	printf("DEBUG: Podany plik to: %s.\n", nazwa_pliku ? nazwa_pliku : "BRAK");
+	printf("DEBUG: Przyjety format wyjsciowy to: %s.\n", format_wyjsciowy);
+	printf("DEBUG: Przyjeta liczba czesci to: %d.\n", czesci);
+	printf("DEBUG: Przyjety margines procentowy to: %d.\n", margines); 
 	
-	/*WCZYTYWANIE PLIKOW I INTERPRETACJA GRAFOW*/
-	
-	int n; /*Liczba wierszy w grafie*/
-	int m; /*Liczba kolumn w grafie*/
-	int v; /*Liczba wezlow w grafie*/
-	
-	int i; 
-	int j; 
-	
-	char linia[MAX_LINE];
-	char linia_wezlow[MAX_LINE];
-	char linia_podzialow[MAX_LINE];
-	
-	int indeks_w_linii = 0;
+	MacierzCSR* macierz = malloc(sizeof(MacierzCSR));
+	if (!macierz) {
+		return -1; /*Blad alokacji pamieci dla struktury*/
+	}
+
+	macierz->max_w_wierszu = 0;
+	macierz->indeksy = malloc(MAX_LINIA * sizeof(int));
+	macierz->indeksy_ptr = malloc(MAX_LINIA * sizeof(int));
+	macierz->grupy = malloc(MAX_LINIA * sizeof(int));
+	macierz->grupy_ptr = malloc(MAX_LINIA * sizeof(int));
+
+	if (!macierz->indeksy || !macierz->indeksy_ptr || !macierz->grupy || !macierz->grupy_ptr) {
+		/*Obsługa bledu alokacji pamieci*/
+		free(macierz->indeksy);
+		free(macierz->indeksy_ptr);
+		free(macierz->grupy);
+		free(macierz->grupy_ptr);
+		free(macierz); // Zwolnienie struktury
+		return -1;
+	}
+
+	/*ODCZYTYWANIE PLIKU*/
+	char linia[MAX_LINIA];
 	
 	FILE* plik = fopen(nazwa_pliku, "r");
 	if(!plik){
@@ -163,72 +151,51 @@ int main(int argc, char *argv[]){
 	}
 	
 	if(fgets(linia, sizeof(linia), plik)){
-		m = atoi(linia);
-		printf("DEBUG: Maksymalna liczba wezlow w wierszu: %d.\n", m);
+		macierz->max_w_wierszu = atoi(linia);
+		printf("DEBUG: Maksymalna liczba wezlow w wierszu: %d.\n", macierz->max_w_wierszu);
     }
 	
-	/*Wczytanie dwoch linii*/
-	fgets(linia_wezlow, sizeof(linia), plik);
-	fgets(linia_podzialow, sizeof(linia), plik);
+	int liczba_wezlow = wczytaj_wartosci(plik, macierz->indeksy);
+	printf("DEBUG: Liczba wezlow w grafie: %d.\n", liczba_wezlow);
 	
-	/*Tablice do przechowywania wezlow*/
-	int wezly[MAX_LINE];
-	int indeksy_podzialu[MAX_LINE];
+	int liczba_wierszy = wczytaj_wartosci(plik, macierz->indeksy_ptr) - 1;
+	printf("DEBUG: Liczba wierszy w grafie: %d.\n", liczba_wierszy);
 	
-	/*Odczytanie indeksow wezlow w wierszu grafu*/
-	int liczba_wezlow = 0;
-	char* token = strtok(linia_wezlow, ";");
-	while(token){
-		wezly[liczba_wezlow++] = atoi(token);
-		token = strtok(NULL, ";");
-	}
-	
-	/*Odczytanie indeksow podzialu*/
-	int liczba_podzialow = 0;
-	token = strtok(linia_podzialow, ";");
-	while (token) {
-		indeksy_podzialu[liczba_podzialow++] = atoi(token);
-		token = strtok(NULL, ";");
-	}
-	
-	 /*Tworzenie struktury grafu*/
-    Graf* graf = (Graf*)malloc(sizeof(Graf));
-    graf->V = liczba_wezlow;
-    graf->wezly = (Wezel*)malloc(liczba_wezlow * sizeof(Wezel));
-	
-	/*Inicjalizacja wezlow*/
-    for (int i = 0; i < liczba_wezlow; i++) {
-        graf->wezly[i].sasiedzi = NULL;
-    }
-	
-	/*Przetworzenie danych*/
-	int k = 0;
-	for(int i = 0; i < liczba_podzialow - 1; i++){
-		for (int j = indeksy_podzialu[i]; j < indeksy_podzialu[i + 1]; j++){
-			graf->wezly[k].x = i;
-			graf->wezly[k].y = wezly[j];
-			k++;
-		}
-	}
-	
-	printf("DEBUG: Indeksy wszystkich wezlow:\n");
-	for(int i=0; i < liczba_wezlow; i++){
-		printf("Wezel %d: [%d, %d]\n", i, graf->wezly[i].x, graf->wezly[i].y);
-	}
-	
-	/*Wypisanie danych w terminalu*/
-	int aktualny_indeks = 0;
-	printf("\nWiersze grafu:\n");
-
-	for (int i = 0; i < liczba_podzialow - 1; i++) {
-		printf("Wiersz %d:", i);
-		for (int j = indeksy_podzialu[i]; j < indeksy_podzialu[i + 1]; j++) {
-			printf(" [%d, %d]", i, wezly[j]);
+	printf("\nDEBUG: Macierz obecnosci\n");
+	for(int i = 0; i < liczba_wierszy; i++){
+		printf("Wiersz %5d:\t", i);
+		for(int j = macierz->indeksy_ptr[i]; j < macierz->indeksy_ptr[i+1]; j++){
+			printf("%d ", macierz->indeksy[j]);
 		}
 		printf("\n");
 	}
+	printf("\n");
 	
-	/*Przetworzenie danych do struktur*/
+	int elementy_grup = wczytaj_wartosci(plik, macierz->grupy);
+	printf("DEBUG: Liczba elementow w grupach: %d.\n", elementy_grup);
 	
+	int liczba_grup = wczytaj_wartosci(plik, macierz->grupy_ptr);
+	printf("DEBUG: Liczba grup wezlow: %d.\n", liczba_grup);
+
+	printf("\nDEBUG: Polaczenia miedzy wezlami:\n");
+    for (int i = 0; i < liczba_grup; i++) {
+        int start = macierz->grupy_ptr[i];
+        int end = (i == liczba_grup - 1) ? elementy_grup - 1 : macierz->grupy_ptr[i + 1] - 1;
+
+        printf("Grupa %d: ", i + 1);
+        for (int j = start; j <= end; j++) {
+            printf("%d ", macierz->grupy[j]);
+        }
+        printf("\n");
+    }
+	
+	free(macierz->indeksy);
+	free(macierz->indeksy_ptr);
+	free(macierz->grupy);
+	free(macierz->grupy_ptr);
+	free(macierz);
+	
+	fclose(plik);
 	return 0;
 }
+
