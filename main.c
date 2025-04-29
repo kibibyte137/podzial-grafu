@@ -11,6 +11,7 @@
 #include "dziel_graf.h"
 #include "walidacja.h"
 #include "wyniki.h"
+#include "pomoc.h"
 
 /*Funkcja main programu*/
 int main(int argc, char *argv[]){
@@ -20,7 +21,7 @@ int main(int argc, char *argv[]){
 	int opt; /*Zmienna przechowujaca opcje getopt*/
 	int czesci = 2; /*Zmienna przechowujaca liczbe czesci, na ktora ma zostac podzielony graf podana przez uzytkownika, domyslnie 2*/
 	int margines = 10; /*Zmienna przechowujaca margines procentowy ilosci wezlow w poszczegolnych czesciach grafu, domyslnie 10*/
-	char *format_wyjsciowy = "txt"; /*Zmienna przechowujaca format pliku wejsciowego podany przez uzytkownika, domyslnie txt*/
+	char *format_wyjsciowy = "csrrg"; /*Zmienna przechowujaca format pliku wejsciowego podany przez uzytkownika, domyslnie csrrg*/
 	char *nazwa_pliku = NULL; /*Zmienna przechowujaca nazwe pliku podana przez uzytkownika*/
 	
 	while((opt = getopt(argc, argv, "f:o:c:m:h")) != -1){
@@ -44,38 +45,27 @@ int main(int argc, char *argv[]){
 				}
 				break;
 			case 'h':
-				// pomoc(); /*Wywolanie funkcji wyswietlajacej podreczna pomoc*/
-				printf("Wyswietlenie podrecznej pomocy.\n");
+				wyswietl_pomoc(); /*Wywolanie funkcji wyswietlajacej podreczna pomoc*/
 				return 0; /*Zakonczenie programu po wyswietleniu pomocy */
 			default:
 				printf("Podano nieprawidlowa opcje.\n"); /*Blad dla nieznanych opcji*/
-				// pomoc(); /*Wyswietlenie pomocy*/
-				printf("Wyswietlenie podrecznej pomocy.\n");
+				wyswietl_pomoc(); /*Wyswietlenie pomocy*/
 				return 7; /*Zakonczenie programu z bledem*/
 		}
 	}	
 	
 	/*OBSLUGA BLEDOW*/
-	if(strcmp(format_wyjsciowy, "txt") != 0 && strcmp(format_wyjsciowy, "bin") != 0 && strcmp(format_wyjsciowy, "csrrg") != 0){
+	if (strcmp(format_wyjsciowy, "csrrg") != 0 && strcmp(format_wyjsciowy, "bin") != 0) {
 		printf("Podano nieprawidlowy format pliku wyjsciowego: %s.\n", format_wyjsciowy);
+		wyswietl_pomoc();
 		return 2;
 	}
 	
 	if(margines < 0 || margines > 100){
 		printf("Podano niepoprawny margines procentowy: %d.\n", margines);
+		wyswietl_pomoc();
 		return 4;
 	}
-	
-	/*OBSLUGA BLEDOW PO ODCZYTANIU GRAFU*/
-	
-	/*Niepoprawny format pliku: Nie udalo sie odczytac pliku: plik. Kod powrotu programu 5*/
-	
-	/* V - liczba wierzchołków w grafie
-	if(czesci < 0 || czesci > V){
-		printf("Nie mozna podzielic grafu na podana liczbe czesci: %s.", czesci);
-		return 3;
-	}
-	*/
 	
 	/*DEBUG*/
 	printf("DEBUG: Podany plik to: %s.\n", nazwa_pliku ? nazwa_pliku : "BRAK");
@@ -110,6 +100,7 @@ int main(int argc, char *argv[]){
 	FILE* plik = fopen(nazwa_pliku, "r");
 	if(!plik){
 		printf("Nie znaleziono pliku: %s.\n", nazwa_pliku);
+		wyswietl_pomoc();
 		return 1;
 	}
 	
@@ -121,8 +112,9 @@ int main(int argc, char *argv[]){
 	int liczba_wezlow = wczytaj_wartosci(plik, macierz->indeksy);
 	printf("DEBUG: Liczba wezlow w grafie: %d.\n", liczba_wezlow);
 	
-	if(czesci < 0 || czesci > liczba_wezlow){
+	if(czesci <= 1 || czesci > liczba_wezlow){
 		printf("Nie mozna podzielic grafu na podana liczbe czesci: %d.\n", czesci);
+		wyswietl_pomoc();
 		return 3;
 	}
 	
