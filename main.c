@@ -1,53 +1,16 @@
-/*NOTATKA 21.04.2025
-Wartości są poprawnie wczytywane do tablic.
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <math.h>
 
-#define MAX_LINIA 100000	/*Maksymalny rozmiar linii*/
-
-typedef struct{
-	int max_w_wierszu; /*Maksymalna liczba wezlow w wierszu grafu (nie musi wystapic wiersz z taka iloscia wezlow)*/
-	
-	int* indeksy; /*Indeksy wezlow w poszczegolnych wierszach*/
-	int* indeksy_ptr; /*Wskazniki na pierwsze indeksy węzłów w wierszach*/
-	
-	int* grupy; /*Grupy wezlow polaczone przy pomocy krawedzi*/
-	int* grupy_ptr; /*Wskazniki na pierwsze wezly w poszczegolnych grupach*/
-	
-	int* stopnie; /*Stopnie poszczegolnych wezlow*/
-} MacierzCSR;
-
-typedef struct{
-	int n; /*Liczba wezlow*/
-	int nnz; /*Liczba niezerowych elementów w macierzy Laplace'a*/
-	int* row_ptr; /*Wskazniki na pierwszy element wiersza*/
-	int* col_idx; /*Indeksy kolumn (sąsiedzi wierzcholka)*/
-	double* values; /*Wartosci macierzy Laplace'a L*/
-} MacierzLaplaceCSR;
-
-void oblicz_stopnie(MacierzCSR *graf, int liczba_wezlow) {
-	for (int i = 0; i < liczba_wezlow; i++) {
-		graf->stopnie[i] = graf->grupy_ptr[i + 1] - graf->grupy_ptr[i];
-	}
-}
-
-/*Funkcja do wczytywania i konwersji wartosci z pliku*/
-int wczytaj_wartosci(FILE* plik, int* tablica){
-	char linia[MAX_LINIA];
-	if (!fgets(linia, sizeof(linia), plik)) return 0;
-
-	int licznik = 0;
-	char* token = strtok(linia, ";");
-	while(token){
-		tablica[licznik++] = atoi(token);
-		token = strtok(NULL, ";");
-	}
-	return licznik;
-}
+#include "struktury.h"
+#include "wczytaj.h"
+#include "stworz_graf.h"
+#include "operacje_macierzowe.h"
+#include "dziel_graf.h"
+#include "walidacja.h"
+#include "wyniki.h"
 
 /*Funkcja main programu*/
 int main(int argc, char *argv[]){
@@ -93,14 +56,14 @@ int main(int argc, char *argv[]){
 	}	
 	
 	/*OBSLUGA BLEDOW*/
-	if(format_wyjsciowy != "txt" && format_wyjsciowy != "bin"){
-		printf("Podano nieprawidlowy format pliku wyjsciowego: %s.", format_wyjsciowy);
+	if(strcmp(format_wyjsciowy, "txt") != 0 && strcmp(format_wyjsciowy, "bin") != 0 && strcmp(format_wyjsciowy, "csrrg") != 0){
+		printf("Podano nieprawidlowy format pliku wyjsciowego: %s.\n", format_wyjsciowy);
 		return 2;
 	}
 	
 	if(margines < 0 || margines > 100){
-		printf("Podano niepoprawny margines procentowy: %d.", margines);
-		return 3;
+		printf("Podano niepoprawny margines procentowy: %d.\n", margines);
+		return 4;
 	}
 	
 	/*OBSLUGA BLEDOW PO ODCZYTANIU GRAFU*/
@@ -158,9 +121,15 @@ int main(int argc, char *argv[]){
 	int liczba_wezlow = wczytaj_wartosci(plik, macierz->indeksy);
 	printf("DEBUG: Liczba wezlow w grafie: %d.\n", liczba_wezlow);
 	
+	if(czesci < 0 || czesci > liczba_wezlow){
+		printf("Nie mozna podzielic grafu na podana liczbe czesci: %d.\n", czesci);
+		return 3;
+	}
+	
 	int liczba_wierszy = wczytaj_wartosci(plik, macierz->indeksy_ptr) - 1;
 	printf("DEBUG: Liczba wierszy w grafie: %d.\n", liczba_wierszy);
 	
+	/*
 	printf("\nDEBUG: Macierz obecnosci\n");
 	for(int i = 0; i < liczba_wierszy; i++){
 		printf("Wiersz %5d:\t", i);
@@ -170,6 +139,7 @@ int main(int argc, char *argv[]){
 		printf("\n");
 	}
 	printf("\n");
+	*/
 	
 	int elementy_grup = wczytaj_wartosci(plik, macierz->grupy);
 	printf("DEBUG: Liczba elementow w grupach: %d.\n", elementy_grup);
@@ -177,6 +147,7 @@ int main(int argc, char *argv[]){
 	int liczba_grup = wczytaj_wartosci(plik, macierz->grupy_ptr);
 	printf("DEBUG: Liczba grup wezlow: %d.\n", liczba_grup);
 
+	/*
 	printf("\nDEBUG: Polaczenia miedzy wezlami:\n");
 	for (int i = 0; i < liczba_grup; i++) {
 		int start = macierz->grupy_ptr[i];
@@ -188,13 +159,98 @@ int main(int argc, char *argv[]){
 		}
 		printf("\n");
 	}
+	*/
+	
+	// Obliczenie stopni
+	macierz->stopnie = malloc(liczba_wezlow * sizeof(int));
+	oblicz_stopnie(macierz, liczba_wezlow, liczba_grup, elementy_grup);
+
+	// Tworzenie macierzy Laplace’a
+	MacierzLaplaceCSR* L = zbuduj_macierz_Laplace(macierz, liczba_wezlow);
+
+	// Alokacja indeksów i przypisań
+	int* przypisania = malloc(liczba_wezlow * sizeof(int));
+	int* indeksy = malloc(liczba_wezlow * sizeof(int));
+	for (int i = 0; i < liczba_wezlow; i++) indeksy[i] = i;
+
+	// Rekurencyjny podział na k części
+	rekurencyjny_podzial(L, indeksy, liczba_wezlow, przypisania, 0, czesci, margines);
+	refine_balancing(L, przypisania, liczba_wezlow, czesci, margines);
+
+
+
+	// Wyświetlenie wyniku
+	printf("\n=== Podział grafu na %d części (margines %d%%) ===\n", czesci, margines);
+	for (int i = 0; i < liczba_wezlow; i++) {
+		printf("Wierzcholek %d => czesc %d\n", i, przypisania[i]);
+	}
+	
+	/*
+	printf("\n=== Stopnie wezlow ===\n");
+	for (int i = 0; i < liczba_wezlow; i++) {
+		printf("Wierzcholek %d ma stopien: %d\n", i, macierz->stopnie[i]);
+	}
+	*/
+
+	/*
+	printf("\n=== Macierz Laplace'a (CSR) ===\n");
+	for (int i = 0; i < liczba_wezlow; i++) {
+		printf("Wiersz %d: ", i);
+		for (int j = L->row_ptr[i]; j < L->row_ptr[i+1]; j++) {
+			printf("(kolumna %d: %f) ", L->col_idx[j], L->values[j]);
+		}
+		printf("\n");
+	}
+	*/
+	
+	// Najpierw sprawdzamy teoretycznie:
+	if (!czy_podzial_mozliwy(liczba_wezlow, czesci, margines)) {
+		printf("\nUWAGA: Teoretycznie nie da się podzielić grafu na %d części z marginesem %d%%.\n", czesci, margines);
+	} else {
+		printf("\nUWAGA: Teoretycznie da się podzielić grafu na %d części z marginesem %d%%.\n", czesci, margines);
+	}
+
+	// Teraz sprawdzamy rzeczywisty podział:
+	printf("\nSprawdzanie poprawnosci rzeczywistego podzialu:\n");
+	if (sprawdz_margines(przypisania, liczba_wezlow, czesci, margines)) {
+		printf("\nSUKCES: Podzial grafu spelnia margines %d%%.\n", margines);
+	} else {
+		printf("\nBLAD: Podzial grafu NIE spelnia marginesu %d%%.\n", margines);
+	}
+
+	 // Wywołanie funkcji zapisującej do pliku
+    char nazwa_wyjsciowa[256];
+    
+    // Domyślna nazwa pliku wyjściowego
+    strcpy(nazwa_wyjsciowa, "wynik.csrrg");
+    
+    // Jeśli podano flagę -o csrrg, używamy tej nazwy
+    if (format_wyjsciowy && strcmp(format_wyjsciowy, "csrrg") == 0) {
+        printf("Zapisuję podzielony graf w formacie CSRRG\n");
+         // Zawsze zapisujemy wynik (domyślnie "wynik.csrrg")
+    zapisz_do_pliku_csrrg(nazwa_wyjsciowa, macierz, przypisania, liczba_wezlow, 
+                         czesci, liczba_grup, elementy_grup, liczba_wierszy);
+    }
+	
+    if (strcmp(format_wyjsciowy, "bin") == 0) {
+    zapisz_do_pliku_binarnego("wynik.bin", macierz, przypisania, 
+                             liczba_wezlow, czesci, liczba_grup, elementy_grup);
+}
+	// Sprzątanie
+	free(przypisania);
+	free(indeksy);
+	free(macierz->stopnie);
+	free(L->row_ptr);
+	free(L->col_idx);
+	free(L->values);
+	free(L);
 	
 	free(macierz->indeksy);
 	free(macierz->indeksy_ptr);
 	free(macierz->grupy);
 	free(macierz->grupy_ptr);
 	free(macierz);
-	
+
 	fclose(plik);
 	return 0;
 }
