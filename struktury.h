@@ -1,7 +1,7 @@
 #ifndef STRUKTURY_H
 #define STRUKTURY_H
 
-#define MAX_LINIA 100000	/*Maksymalny rozmiar linii*/
+#define MAX_LINIA 1000000	/*Maksymalny rozmiar linii*/
 
 typedef struct{
 	int max_w_wierszu;		/*Maksymalna liczba wezlow w wierszu grafu (nie musi wystapic wiersz z taka iloscia wezlow)*/

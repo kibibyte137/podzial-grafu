@@ -68,10 +68,10 @@ int main(int argc, char *argv[]){
 	}
 	
 	/*DEBUG*/
-	printf("DEBUG: Podany plik to: %s.\n", nazwa_pliku ? nazwa_pliku : "BRAK");
-	printf("DEBUG: Przyjety format wyjsciowy to: %s.\n", format_wyjsciowy);
-	printf("DEBUG: Przyjeta liczba czesci to: %d.\n", czesci);
-	printf("DEBUG: Przyjety margines procentowy to: %d.\n", margines); 
+	printf("Podany plik to: %s.\n", nazwa_pliku ? nazwa_pliku : "BRAK");
+	printf("Przyjety format wyjsciowy to: %s.\n", format_wyjsciowy);
+	printf("Przyjeta liczba czesci to: %d.\n", czesci);
+	printf("Przyjety margines procentowy to: %d.\n", margines); 
 	
 	MacierzCSR* macierz = malloc(sizeof(MacierzCSR));
 	if (!macierz) {
@@ -106,11 +106,11 @@ int main(int argc, char *argv[]){
 	
 	if(fgets(linia, sizeof(linia), plik)){
 		macierz->max_w_wierszu = atoi(linia);
-		printf("DEBUG: Maksymalna liczba wezlow w wierszu: %d.\n", macierz->max_w_wierszu);
+		printf("Maksymalna liczba wezlow w wierszu: %d.\n", macierz->max_w_wierszu);
 	}
 	
 	int liczba_wezlow = wczytaj_wartosci(plik, macierz->indeksy);
-	printf("DEBUG: Liczba wezlow w grafie: %d.\n", liczba_wezlow);
+	printf("Liczba wezlow w grafie: %d.\n", liczba_wezlow);
 	
 	if(czesci <= 1 || czesci > liczba_wezlow){
 		printf("Nie mozna podzielic grafu na podana liczbe czesci: %d.\n", czesci);
@@ -119,13 +119,13 @@ int main(int argc, char *argv[]){
 	}
 	
 	int liczba_wierszy = wczytaj_wartosci(plik, macierz->indeksy_ptr) - 1;
-	printf("DEBUG: Liczba wierszy w grafie: %d.\n", liczba_wierszy);
+	printf("Liczba wierszy w grafie: %d.\n", liczba_wierszy);
 		
 	int elementy_grup = wczytaj_wartosci(plik, macierz->grupy);
-	printf("DEBUG: Liczba elementow w grupach: %d.\n", elementy_grup);
+	printf("Liczba elementow w grupach: %d.\n", elementy_grup);
 	
 	int liczba_grup = wczytaj_wartosci(plik, macierz->grupy_ptr);
-	printf("DEBUG: Liczba grup wezlow: %d.\n", liczba_grup);
+	printf("Liczba grup wezlow: %d.\n", liczba_grup);
 	
 	// Obliczenie stopni
 	macierz->stopnie = malloc(liczba_wezlow * sizeof(int));
@@ -183,6 +183,9 @@ int main(int argc, char *argv[]){
     if (strcmp(format_wyjsciowy, "bin") == 0) { 
 		zapisz_do_pliku_binarnego("wynik.bin", macierz, przypisania, liczba_wezlow, czesci, liczba_grup, elementy_grup);
 	}
+
+	
+	zapisz_przypisania_do_pliku("przypisania.txt", przypisania, liczba_wezlow);
 
 	// Sprzątanie
 	free(przypisania);

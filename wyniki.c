@@ -164,3 +164,30 @@ void zapisz_do_pliku_binarnego(const char* nazwa_pliku, MacierzCSR* graf, int* p
     fclose(plik); /*Zamknięcie pliku*/
     printf("Zapisano podział do pliku binarnego: %s\n", nazwa_pliku);
 }
+
+/*
+Funkcja: zapisz_przypisania_do_pliku
+Opis:
+    Zapisuje do pliku tekstowego informacje o przypisaniu wierzchołków do części
+    w formacie: "Wierzcholek X => czesc Y"
+Parametry:
+    nazwa_pliku - nazwa pliku wyjściowego
+    przypisania - tablica przypisań wierzchołków do części
+    liczba_wezlow - całkowita liczba wierzchołków w grafie
+Zwraca:
+    Nic - zapisuje dane do pliku
+*/
+void zapisz_przypisania_do_pliku(const char* nazwa_pliku, int* przypisania, int liczba_wezlow) {
+    FILE* plik = fopen(nazwa_pliku, "w");
+    if (!plik) {
+        printf("Nie można utworzyć pliku wyjściowego: %s\n", nazwa_pliku);
+        return;
+    }
+
+    for (int i = 0; i < liczba_wezlow; i++) {
+        fprintf(plik, "Wierzcholek %d => czesc %d\n", i, przypisania[i]);
+    }
+
+    fclose(plik);
+    printf("Zapisano przypisania wierzchołków do pliku: %s\n", nazwa_pliku);
+}
